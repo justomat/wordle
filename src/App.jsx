@@ -1,7 +1,17 @@
-import { useEffect, useMemo, useReducer } from "react"
+import {
+	createRef,
+	memo,
+	useCallback,
+	useEffect,
+	useMemo,
+	useReducer,
+	useState,
+} from "react"
 import "./App.css"
-import { Button } from "./components/ui/button"
 import { GearIcon, HamburgerMenuIcon } from "@radix-ui/react-icons"
+import { Button } from "./components/ui/button"
+
+const index = createRef(0)
 
 function Header() {
 	const Title = () => <h1 className="font-serif text-3xl font-bold">Wordle</h1>
@@ -24,48 +34,33 @@ function Header() {
 
 /** @typedef {"none" | "typed" | "absent" | "displaced" | "correct"} State */
 
-function Attempt() {
+const Tile = ({ id }) => {
+	let editable = id === index.current
+
 	return (
-		<form
-			onSubmit={e => {
-				e.preventDefault()
-				let form = e.target
-				let data = new FormData(form)
-				let values = Array.from(data.values()).filter(Boolean)
-				console.log(values)
-				if (values.length !== 5) {
-					form.children.forEach(child => {
-						child.classlist.add("animate-shake")
-					})
-					setTimeout(() => {
-						form.reset()
-					}, 1000)
-				}
+		<input
+			id={id}
+			contentEditable={editable}
+			maxLength={1}
+			style={{
+				caretColor: "transparent",
+				textTransform: "uppercase",
 			}}
-		>
-			<input type="text" name="value" maxLength={1} />
-			<input type="text" name="value" maxLength={1} />
-			<input type="text" name="value" maxLength={1} />
-			<input type="text" name="value" maxLength={1} />
-			<input type="text" name="value" maxLength={1} />
-			<input type="submit" value="hi" />
-		</form>
+			className="text-center pointer-events-none flex justify-center items-center text-3xl border border-gray-300 min-w-[1ch] max-w-10 min-h-10"
+		/>
 	)
 }
 
-const Tile = ({ value }) => (
-	<div className="flex justify-center items-center text-3xl border border-gray-300 min-w-[1ch] max-w-10 min-h-10">
-		{value}
-	</div>
-)
-
 function Tiles() {
+	useEffect(() => {
+		document.getElementById(0)?.focus()
+	}, [])
+
 	return (
 		<section id="tiles" className="flex items-center justify-center">
 			<div className="grid grid-cols-5 gap-1 m-4 auto-rows-fr">
 				{Array.from({ length: 30 }).map((_, i) => {
-					let value = i + 1
-					return <Tile key={i} id={value} value={value} />
+					return <Tile key={i} id={`${i}`} />
 				})}
 			</div>
 		</section>
@@ -76,7 +71,7 @@ function Tiles() {
  * @param {{ id: string, state?: State }} props
  * @returns {JSX.Element}
  */
-const Key = ({ id, state = "none", value }) => {
+const Key = memo(({ id, state = "none" }) => {
 	let className = useMemo(() => {
 		switch (state) {
 			case "none":
@@ -92,16 +87,36 @@ const Key = ({ id, state = "none", value }) => {
 		}
 	}, [state])
 
+	useEffect(() => {
+		let handler = e => {
+			if (e.key === id) {
+				handleClick({ target: { id } })
+			}
+		}
+		window.addEventListener("keydown", handler)
+		return () => window.removeEventListener("keydown", handler)
+	}, [id])
+
 	return (
-		<Button className={`${className} rounded h-14 max-w-[1ch] hover:bg-unset`}>
-			<h4 className="text-lg font-semibold tracking-tight">{value ?? id}</h4>
+		<Button
+			id={id}
+			onClick={handleClick}
+			className={`${className} rounded h-14 max-w-[1ch] hover:bg-unset`}
+		>
+			<h4 className="text-lg font-semibold tracking-tight">{id}</h4>
 		</Button>
 	)
-}
+})
 
 const Row = ({ children }) => (
 	<div className="flex flex-row justify-center gap-2 mb-2">{children}</div>
 )
+
+function handleClick(e) {
+	const key = e.target.id
+
+	console.log(key)
+}
 
 function Keyboard() {
 	return (
@@ -127,7 +142,11 @@ function Keyboard() {
 	)
 }
 
-const initial = { answer: "" }
+const initial = {
+	lives: 6,
+	attempts: [],
+	answer: "",
+}
 const decoder = new TextDecoder()
 
 const initializer = async () => {
@@ -150,23 +169,11 @@ const initializer = async () => {
 const reducer = (state, action) => {
 	switch (action.press) {
 		default:
-			return state
+			return
 	}
 }
 
 function App() {
-	const [state, dispatch] = useReducer(reducer, initial, initializer)
-
-	useEffect(() => {
-		const handler = e => {
-			dispatch({ press: e.key })
-		}
-		window.addEventListener("keydown", handler)
-		return () => {
-			window.removeEventListener("keydown", handler)
-		}
-	}, [])
-
 	return (
 		<article className="flex flex-col items-center flex-1">
 			<Header />
