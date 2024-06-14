@@ -1,17 +1,19 @@
 import {
+	Suspense,
 	createRef,
 	memo,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useReducer,
-	useState,
 } from "react"
 import "./App.css"
 import { GearIcon, HamburgerMenuIcon } from "@radix-ui/react-icons"
-import { Button } from "./components/ui/button"
+import { useAtom, useAtomValue } from "jotai"
 
-const index = createRef(0)
+import { Button } from "./components/ui/button"
+import { answerAtom, createTileAtom, gameAtom, wordsAtom } from "./lib/state"
 
 function Header() {
 	const Title = () => <h1 className="font-serif text-3xl font-bold">Wordle</h1>
@@ -34,28 +36,38 @@ function Header() {
 
 /** @typedef {"none" | "typed" | "absent" | "displaced" | "correct"} State */
 
-const Tile = ({ id }) => {
-	let editable = id === index.current
+const Tile = memo(({ id }) => {
+	const tileAtom = useMemo(() => createTileAtom(id), [id])
+	const value = useAtomValue(tileAtom)
+	const [state] = useAtom(gameAtom)
+
+	const shake = useMemo(() => {
+		if (state.status === "false") {
+			return "animate-shake"
+		}
+	}, [state])
+
+	const style = useMemo(() => {
+		if (value) {
+			return "border-zinc-500 animate-flip"
+		} else {
+			return "border-gray-300 upside-down"
+		}
+	}, [value])
 
 	return (
 		<input
 			id={id}
-			contentEditable={editable}
+			contentEditable={false}
 			maxLength={1}
-			style={{
-				caretColor: "transparent",
-				textTransform: "uppercase",
-			}}
-			className="text-center pointer-events-none flex justify-center items-center text-3xl border border-gray-300 min-w-[1ch] max-w-10 min-h-10"
+			value={value || ""}
+			readOnly
+			className={`${style} ${shake} text-center caret-transparent uppercase pointer-events-none flex justify-center items-center text-3xl border-2 min-w-[1ch] max-w-10 min-h-10`}
 		/>
 	)
-}
+})
 
 function Tiles() {
-	useEffect(() => {
-		document.getElementById(0)?.focus()
-	}, [])
-
 	return (
 		<section id="tiles" className="flex items-center justify-center">
 			<div className="grid grid-cols-5 gap-1 m-4 auto-rows-fr">
@@ -72,7 +84,13 @@ function Tiles() {
  * @returns {JSX.Element}
  */
 const Key = memo(({ id, state = "none" }) => {
-	let className = useMemo(() => {
+	const [, dispatch] = useAtom(gameAtom)
+
+	const handleClick = useCallback(() => {
+		dispatch({ type: "press", payload: id })
+	}, [dispatch, id])
+
+	let style = useMemo(() => {
 		switch (state) {
 			case "none":
 				return "bg-gray-300 text-black"
@@ -87,23 +105,13 @@ const Key = memo(({ id, state = "none" }) => {
 		}
 	}, [state])
 
-	useEffect(() => {
-		let handler = e => {
-			if (e.key === id) {
-				handleClick({ target: { id } })
-			}
-		}
-		window.addEventListener("keydown", handler)
-		return () => window.removeEventListener("keydown", handler)
-	}, [id])
-
 	return (
 		<Button
 			id={id}
 			onClick={handleClick}
-			className={`${className} rounded h-14 max-w-[1ch] hover:bg-unset`}
+			className={`${style} rounded h-14 max-w-[1ch] hover:bg-unset`}
 		>
-			<h4 className="text-lg font-semibold tracking-tight">{id}</h4>
+			<h4 className="text-lg font-semibold tracking-tight uppercase">{id}</h4>
 		</Button>
 	)
 })
@@ -112,78 +120,64 @@ const Row = ({ children }) => (
 	<div className="flex flex-row justify-center gap-2 mb-2">{children}</div>
 )
 
-function handleClick(e) {
-	const key = e.target.id
-
-	console.log(key)
-}
-
-function Keyboard() {
+const Keyboard = memo(() => {
 	return (
 		<section id="keyboard" className="mx-2">
 			<Row>
-				{"QWERTYUIOP".split("").map(id => (
+				{"qwertyuiop".split("").map(id => (
 					<Key key={id} id={id} />
 				))}
 			</Row>
 			<Row>
-				{"ASDFGHJKL".split("").map(id => (
+				{"asdfghjkl".split("").map(id => (
 					<Key key={id} id={id} />
 				))}
 			</Row>
 			<Row>
 				<Key id="⏎" />
-				{"ZXCVBNM".split("").map(id => (
+				{"zxcvbnm".split("").map(id => (
 					<Key key={id} id={id} />
 				))}
 				<Key id="⌫" />
 			</Row>
 		</section>
 	)
-}
+})
 
-const initial = {
-	lives: 6,
-	attempts: [],
-	answer: "",
-}
-const decoder = new TextDecoder()
+function Game({ answer }) {
+	const [, dispatch] = useAtom(gameAtom)
 
-const initializer = async () => {
-	try {
-		const res = await fetch("/words.txt")
-		const buffer = await res.arrayBuffer()
+	const handleKeyPress = useCallback(key => {
+		dispatch({ type: "press", payload: key })
+	})
 
-		const array = new Uint8Array(buffer)
-		const index = Math.floor(Math.random() * (array.length / 6))
-		const slice = array.subarray(index * 6, index * 6 + 5)
+	useEffect(() => {
+		let handler = e => handleKeyPress(e.key)
+		window.addEventListener("keydown", handler)
+		return () => window.removeEventListener("keydown", handler)
+	}, [handleKeyPress])
 
-		const answer = decoder.decode(slice)
-
-		return { answer }
-	} catch (error) {
-		console.error(error)
-	}
-}
-
-const reducer = (state, action) => {
-	switch (action.press) {
-		default:
-			return
-	}
-}
-
-function App() {
 	return (
 		<article className="flex flex-col items-center flex-1">
 			<Header />
 			<main className="max-w-[480px]">
 				<Tiles />
-				<Keyboard />
+				<Keyboard handleKeyPress={handleKeyPress} />
 			</main>
 			<footer></footer>
 		</article>
 	)
 }
 
-export default App
+function App() {
+	const answer = useAtomValue(answerAtom)
+	const game = useAtomValue(gameAtom)
+
+	useEffect(() => {
+		console.log(JSON.stringify(game))
+	}, [game])
+
+	return answer && <Game answer={answer} />
+}
+
+export default memo(App)

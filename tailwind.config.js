@@ -68,14 +68,22 @@ module.exports = {
 				},
 				shake: {
 					"0%, 100%": { transform: "translateX(0)" },
-					"10%, 30%, 50%, 70%, 90%": { transform: "translateX(-10px)" },
-					"20%, 40%, 60%, 80%": { transform: "translateX(10px)" },
+					"10%, 30%, 50%, 70%, 90%": { transform: "translateX(-8px)" },
+					"20%, 40%, 60%, 80%": { transform: "translateX(8px)" },
+				},
+				flip: {
+					"0%": { transform: "rotateX(180deg)" },
+					"100%": { transform: "rotateX(0deg)" },
 				},
 			},
 			animation: {
 				"accordion-down": "accordion-down 0.2s ease-out",
 				"accordion-up": "accordion-up 0.2s ease-out",
-				shake: "shake 1s ease-in-out",
+				shake: "shake 0.65s ease-in-out",
+				flip: "flip 0.5s ease-in-out backwards",
+			},
+			transform: {
+				"upside-down": "rotateX(180deg)",
 			},
 		},
 	},
